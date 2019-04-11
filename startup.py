@@ -45,3 +45,15 @@ class TDE4Launcher(SoftwareLauncher):
             args += ' {}'.format(subprocess.list2cmdline(('-open', file_to_open)))
 
         return LaunchInformation(exec_path, args, required_env)
+
+    def _icon_from_engine(self):
+        """
+        Use the default engine icon as natron does not supply
+        an icon in their software directory structure.
+
+        :returns: Full path to application icon as a string or None.
+        """
+        # the engine icon
+        engine_icon = os.path.join(self.disk_location, "icon_256.png")
+        return engine_icon
+
