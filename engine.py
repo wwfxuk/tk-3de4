@@ -104,6 +104,8 @@ class TDE4Engine(Engine):
         from tank.platform.qt import QtCore
         dialog = super(TDE4Engine, self)._create_dialog(title, bundle, widget, parent)
         dialog.setWindowFlags(dialog.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        dialog.setWindowState(
+            (dialog.windowState() & ~QtCore.Qt.WindowMinimized) | QtCore.Qt.WindowActive)
         dialog.raise_()
         dialog.activateWindow()
         return dialog
