@@ -71,6 +71,10 @@ class TDE4Engine(Engine):
     def post_qt_init(self):
         self._initialize_dark_look_and_feel()
 
+        # try to open workfiles
+        if 'File Open...' in self.commands:
+            self.commands['File Open...']['callback']()
+
     def post_context_change(self, old_context, new_context):
         self.create_shotgun_menu()
 
