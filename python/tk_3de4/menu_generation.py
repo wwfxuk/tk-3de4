@@ -70,10 +70,10 @@ class MenuGenerator(object):
             if cmd.get_type() == "context_menu":
                 self.logger.debug("Adding %s to context menu", cmd.name)
                 self._add_command_to_menu(cmd, ctx_menu_name)
-            elif cmd.favourite:
-                favourites.append(cmd)
             else:
                 other_menu_items[cmd.get_app_name()].append(cmd)
+            if cmd.favourite:
+                favourites.append(cmd)
 
         for cmd in favourites:
             self.logger.debug("Adding %s to favourites", cmd.name)

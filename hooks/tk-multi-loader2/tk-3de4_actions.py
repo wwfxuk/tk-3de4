@@ -45,7 +45,7 @@ def key_func(items):
 
 def get_frame_numbers(paths):
     numbers = []
-    frame_pattern = re.compile(r".(\d+).")
+    frame_pattern = re.compile(r"\.(\d+)\.")
     for path in paths:
         match = frame_pattern.search(path)
         if match:
@@ -208,7 +208,7 @@ class TDE4Actions(HookBaseClass):
     def _import_image_seq(self, path, sg_publish_data):
         app = self.parent
         path, start, end, step = get_hash_path_and_range_info_from_seq(path)
-        name = app.parent.context.entity["name"]
+        name = app.engine.context.entity["name"]
 
         camera_count = tde4.getNoCameras()
         if camera_count:
@@ -223,19 +223,24 @@ class TDE4Actions(HookBaseClass):
             app.logger.info("%d sequence cameras selected, assigning to all", len(selected_cameras))
             for cam_id in selected_cameras:
                 current_name = tde4.getCameraName(cam_id)
+                app.logger.debug("Current camera: '%s'", current_name)
                 if not current_name.startswith(name):
                     cam_name = name
                     count = 0
                     while tde4.findCameraByName(cam_name):
                         count += 1
                         cam_name = "{}__{:02}".format(name, count)
-                        app.logger.info("Renaming '%s' to '%s'", current_name, cam_name)
+                    app.logger.info("Renaming '%s' to '%s'", current_name, cam_name)
                     tde4.setCameraName(cam_id, cam_name)
                 else:
                     app.logger.info("'%s' already has name referring to Shot", current_name)
+                app.logger.debug("setCameraSequenceAttr: %s, %d, %d, %d", cam_id, start, end, step)
                 tde4.setCameraSequenceAttr(cam_id, start, end, step)
+                app.logger.debug("setCameraFrameOffset: %s, %d", cam_id, start)
                 tde4.setCameraFrameOffset(cam_id, start)
+                app.logger.debug("setCameraFrameRangeCalculationFlag: %s, 1", cam_id)
                 tde4.setCameraFrameRangeCalculationFlag(cam_id, 1)
+                app.logger.debug("setCameraPath: %s, %s", cam_id, path)
                 tde4.setCameraPath(cam_id, path)
         else:
             QtGui.QMessageBox.warning(
