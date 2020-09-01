@@ -2,11 +2,13 @@
 A 3dequalizer4 engine for Tank.
 
 """
+from __future__ import print_function
 import datetime
 import logging
 import os
 import re
 import shutil
+import subprocess
 import sys
 
 import sgtk
@@ -49,7 +51,28 @@ class TDE4Engine(Engine):
         return host_info
 
     def create_shotgun_menu(self):
+        """
+        Create the shotgun menu
+        """
         if self.has_ui:
+            self.register_command(
+                "Jump to Shotgun",
+                self._jump_to_shotgun,
+                {
+                    "short_name": "jump_to_sg",
+                    "description": "Jump to Entity page in Shotgun.",
+                    "type": "context_menu",
+                },
+            )
+            self.register_command(
+                "Jump to File System",
+                self._jump_to_filesystem,
+                {
+                    "short_name": "jump_to_fs",
+                    "description": "Open relevant folders in the file system.",
+                    "type": "context_menu",
+                },
+            )
             tk_3de4 = self.import_module("tk_3de4")
             menu_generator = tk_3de4.MenuGenerator(self)
             menu_generator.create_menu()
@@ -65,24 +88,6 @@ class TDE4Engine(Engine):
         Executed by the system and typically implemented by deriving classes.
         This method called after all apps have been loaded.
         """
-        self.register_command(
-            "Jump to Shotgun",
-            self._jump_to_shotgun,
-            {
-                "short_name": "jump_to_sg",
-                "description": "Jump to Entity page in Shotgun.",
-                "type": "context_menu",
-            },
-        )
-        self.register_command(
-            "Jump to File System",
-            self._jump_to_filesystem,
-            {
-                "short_name": "jump_to_fs",
-                "description": "Open relevant folders in the file system.",
-                "type": "context_menu",
-            },
-        )
         self.create_shotgun_menu()
 
     def post_qt_init(self):
@@ -155,9 +160,7 @@ class TDE4Engine(Engine):
         log_info_above = record.levelno >= logging.INFO
         if log_debug or log_info_above:
             msg = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
-            msg += " "
-            msg += handler.format(record)
-            print msg
+            print(msg, handler.format(record))
 
     def _create_dialog(self, title, bundle, widget, parent):
         """
@@ -195,24 +198,24 @@ class TDE4Engine(Engine):
         """
         # launch one window for each location on disk
         paths = self.context.filesystem_locations
+        # get the setting
+        system = sys.platform
+        # run the app
+        if system == "linux2":
+            cmd = ["xdg-open"]
+        elif system == "darwin":
+            cmd = ["open"]
+        elif system == "win32":
+            cmd = ["cmd.exe", "/C", "start", "Folder"]
+        else:
+            raise Exception("Platform '%s' is not supported." % system)
         for disk_location in paths:
-
-            # get the setting
-            system = sys.platform
-
-            # run the app
-            if system == "linux2":
-                cmd = 'xdg-open "%s"' % disk_location
-            elif system == "darwin":
-                cmd = 'open "%s"' % disk_location
-            elif system == "win32":
-                cmd = 'cmd.exe /C start "Folder" "%s"' % disk_location
-            else:
-                raise Exception("Platform '%s' is not supported." % system)
-
-            exit_code = os.system(cmd)
-            if exit_code != 0:
-                self.logger.error("Failed to launch '%s'!", cmd)
+            args = cmd + [disk_location]
+            try:
+                subprocess.check_call(args)
+            except Exception as error:
+                cmdline = subprocess.list2cmdline(args)
+                self.logger.error("Failed to launch '%s'!", cmdline)
 
     def _cleanup_folders(self):
         """

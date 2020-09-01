@@ -20,6 +20,7 @@ replaced by:
 3. Point to our ``tk-multi-loader2`` repository in
    ``env/includes/app_locations.yml:apps.tk-multi-loader2.location``
 """
+import errno
 import glob
 from itertools import groupby, izip
 import os
@@ -33,21 +34,20 @@ import tde4
 HookBaseClass = sgtk.get_hook_baseclass()
 
 
-class FileExistenceError(Exception):
+class FileExistenceError(OSError):
     """
     Exception when files don't exist on disk.
     """
     def __init__(self, path):
         """
         Initialise the class.
-
         :param str path: The path that doesn't exist.
         """
-        message = "Could not find file on disk for published file path: {!r}"
-        super(FileExistenceError, self).__init__(message.format(path))
+        message = "Couldn't find file on disk for published file path"
+        super(FileExistenceError, self).__init__(errno.ENOENT, message, path)
 
 
-def key_func(frames):
+def frames_diff(frames):
     """
     Key func for grouping frames by the difference between frames.
 
@@ -87,6 +87,7 @@ def get_hash_path_and_range_info_from_seq(path):
     """
     frame_pattern = re.compile(r"(%0(\d+)d)")
     frame_match = frame_pattern.search(path)
+    start, end, step = 1, 1, 1
     if frame_match:
         has_frame_spec = True
         frame_spec = frame_match.group(1)
@@ -96,16 +97,13 @@ def get_hash_path_and_range_info_from_seq(path):
         steps = []
         if not frame_files:
             raise FileExistenceError(path)
-        for step, _ in groupby(izip(numbers[:-1], numbers[1:]), key_func):
+        for step, _ in groupby(izip(numbers[:-1], numbers[1:]), frames_diff):
             steps.append(step)
         if len(steps) > 1:
             raise ValueError("Inconsistent frame steps")
-        hashed_path = path.replace(frame_spec, "#" * int(frame_match.group(2)))
-        start = min(numbers)
-        end = max(numbers)
-        step = steps[0]
-        return hashed_path, start, end, step
-    return path, 1, 1, 1
+        path = path.replace(frame_spec, "#" * int(frame_match.group(2)))
+        start, end, step = min(numbers), max(numbers), steps[0]
+    return path, start, end, step
 
 
 def is_sequence_camera(cam_id):

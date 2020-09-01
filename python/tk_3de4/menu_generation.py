@@ -26,7 +26,8 @@ class MenuGenerator(object):
     """
     Menu generation functionality for 3DE4
     """
-    root_ui_item = "Main Window::Shotgun"
+    MENU_SEP = "::"
+    ROOT_UI_ITEM = "Main Window::Shotgun"
 
     def __init__(self, engine):
         """
@@ -67,14 +68,15 @@ class MenuGenerator(object):
             self.logger.debug("Removing menu file: %s", item)
             os.remove(os.path.join(self.custom_scripts_dir_path, item))
 
-        menu_items = []
-        for cmd_name, cmd_details in self._engine.commands.items():
-             menu_items.append(AppCommand(cmd_name, cmd_details))
+        menu_items = [
+            AppCommand(cmd_name, cmd_details)
+            for cmd_name, cmd_details in self._engine.commands.items()
+        ]
 
         ctx = self._engine.context
         ctx_name = str(ctx)
         # Adding a space to name will put it at the top of the menu as it's alphabetical
-        ctx_menu_name = "{}:: {}".format(MenuGenerator.root_ui_item, ctx_name)
+        ctx_menu_name = "{}{} {}".format(MenuGenerator.ROOT_UI_ITEM, self.MENU_SEP, ctx_name)
 
         other_menu_items = defaultdict(list)
         favourites = []
@@ -90,15 +92,15 @@ class MenuGenerator(object):
 
         for cmd in favourites:
             self.logger.debug("Adding %s to favourites", cmd.name)
-            self._add_command_to_menu(cmd, MenuGenerator.root_ui_item, favourite=True)
+            self._add_command_to_menu(cmd, MenuGenerator.ROOT_UI_ITEM, favourite=True)
 
         for app, cmds in other_menu_items.items():
             if len(cmds) == 1:
                 if cmds[0].favourite:  # cmd has been added to favourites, so no need to add it again
                     continue
-                parent_menu = MenuGenerator.root_ui_item
+                parent_menu = MenuGenerator.ROOT_UI_ITEM
             else:
-                parent_menu = "{}::{}".format(MenuGenerator.root_ui_item, app)
+                parent_menu = self.MENU_SEP.join([MenuGenerator.ROOT_UI_ITEM, app])
             for cmd in cmds:
                 self.logger.debug("Adding %s to %s", cmd.name, parent_menu)
                 self._add_command_to_menu(cmd, parent_menu)
@@ -200,7 +202,7 @@ class AppCommand(object):
         app_instance = self.properties["app"]
         engine = app_instance.engine
 
-        for (app_instance_name, app_instance_obj) in engine.apps.items():
+        for app_instance_name, app_instance_obj in engine.apps.items():
             if app_instance_obj == app_instance:
                 # found our app!
                 return app_instance_name
