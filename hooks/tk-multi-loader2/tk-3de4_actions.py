@@ -34,16 +34,36 @@ HookBaseClass = sgtk.get_hook_baseclass()
 
 
 class FileExistenceError(Exception):
+    """
+    Exception when files don't exist on disk.
+    """
     def __init__(self, path):
+        """
+        Initialise the class.
+
+        :param str path: The path that doesn't exist.
+        """
         message = "Could not find file on disk for published file path: {!r}"
         super(FileExistenceError, self).__init__(message.format(path))
 
 
-def key_func(items):
-    return items[1] - items[0]
+def key_func(frames):
+    """
+    Key func for grouping frames by the difference between frames.
+
+    :param tuple frames: The current and next frame number.
+    """
+    return frames[1] - frames[0]
 
 
 def get_frame_numbers(paths):
+    """
+    Get the list of frame numbers from a file sequence.
+
+    :param list(str) paths: The list of paths to extract the frames from.
+
+    :return: The list of frame numbers.
+    """
     numbers = []
     frame_pattern = re.compile(r"\.(\d+)\.")
     for path in paths:
@@ -54,6 +74,17 @@ def get_frame_numbers(paths):
 
 
 def get_hash_path_and_range_info_from_seq(path):
+    """
+    Get the path sequence in a format that 3DE can read (####), with the start,
+    end and step of the sequence.
+
+    :param str path: The path supplied from shotgun.
+
+    :rtype: tuple(str, int, int, int)
+
+    :raises ValueError: Frame step is not consistent, indicating missing frames.
+    :raises FileExistenceError: The path does not exist on disk.
+    """
     frame_pattern = re.compile(r"(%0(\d+)d)")
     frame_match = frame_pattern.search(path)
     if frame_match:
@@ -68,7 +99,7 @@ def get_hash_path_and_range_info_from_seq(path):
         for step, _ in groupby(izip(numbers[:-1], numbers[1:]), key_func):
             steps.append(step)
         if len(steps) > 1:
-            raise Exception("Inconsistent frame steps")
+            raise ValueError("Inconsistent frame steps")
         hashed_path = path.replace(frame_spec, "#" * int(frame_match.group(2)))
         start = min(numbers)
         end = max(numbers)
@@ -77,12 +108,14 @@ def get_hash_path_and_range_info_from_seq(path):
     return path, 1, 1, 1
 
 
-def check_file_exists(path):
-    if not os.path.exists(path):
-        raise FileExistenceError(path)
-
-
 def is_sequence_camera(cam_id):
+    """
+    Check camera is a sequence camera.
+
+    :param int cam_id: The 3DE camera id.
+
+    :rtype: bool
+    """
     return tde4.getCameraType(cam_id) == "SEQUENCE"
 
 class TDE4Actions(HookBaseClass):
@@ -206,6 +239,12 @@ class TDE4Actions(HookBaseClass):
     # helper methods which can be subclassed in custom hooks to fine tune the behaviour of things
 
     def _import_image_seq(self, path, sg_publish_data):
+        """
+        Import and image sequence and assign it to the selected cameras.
+
+        :param str path: The file path to load.
+        :param dict sg_publish_data: Shotgun data dictionary with all the standard publish fields.
+        """
         app = self.parent
         path, start, end, step = get_hash_path_and_range_info_from_seq(path)
         name = app.engine.context.entity["name"]

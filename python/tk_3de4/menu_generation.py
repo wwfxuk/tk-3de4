@@ -29,6 +29,11 @@ class MenuGenerator(object):
     root_ui_item = "Main Window::Shotgun"
 
     def __init__(self, engine):
+        """
+        Initialise the class.
+
+        :param engine: The shotgun engine instance.
+        """
         self._engine = engine
         self._current_menu_index = count()
         self.custom_scripts_dir_path = os.environ["TK_3DE4_MENU_DIR"]
@@ -38,6 +43,11 @@ class MenuGenerator(object):
 
     @property
     def logger(self):
+        """
+        Get the logger instance.
+
+        :returns: The logger associated to the engine.
+        """
         return self._engine.logger
 
     def create_menu(self):
@@ -50,9 +60,11 @@ class MenuGenerator(object):
 
         # Get temp folder path and create it if needed.
         if not os.path.isdir(self.custom_scripts_dir_path):
+            self.logger.debug("Creating menu directory %s", self.custom_scripts_dir_path)
             os.makedirs(self.custom_scripts_dir_path)
         # Clear it.
         for item in os.listdir(self.custom_scripts_dir_path):
+            self.logger.debug("Removing menu file: %s", item)
             os.remove(os.path.join(self.custom_scripts_dir_path, item))
 
         menu_items = []
@@ -61,7 +73,8 @@ class MenuGenerator(object):
 
         ctx = self._engine.context
         ctx_name = str(ctx)
-        ctx_menu_name = "{}::{}".format(MenuGenerator.root_ui_item, ctx_name)
+        # Adding a space to name will put it at the top of the menu as it's alphabetical
+        ctx_menu_name = "{}:: {}".format(MenuGenerator.root_ui_item, ctx_name)
 
         other_menu_items = defaultdict(list)
         favourites = []
@@ -77,10 +90,12 @@ class MenuGenerator(object):
 
         for cmd in favourites:
             self.logger.debug("Adding %s to favourites", cmd.name)
-            self._add_command_to_menu(cmd, MenuGenerator.root_ui_item)
+            self._add_command_to_menu(cmd, MenuGenerator.root_ui_item, favourite=True)
 
         for app, cmds in other_menu_items.items():
             if len(cmds) == 1:
+                if cmds[0].favourite:  # cmd has been added to favourites, so no need to add it again
+                    continue
                 parent_menu = MenuGenerator.root_ui_item
             else:
                 parent_menu = "{}::{}".format(MenuGenerator.root_ui_item, app)
@@ -92,6 +107,13 @@ class MenuGenerator(object):
     # context menu and UI
 
     def _add_script_to_menu(self, name, parent_menu, script):
+        """
+        Add a custom script to the 3de menu.
+
+        :param str name: The name of the menu item.
+        :param str parent_menu: The name of the parent menu item.
+        :param list(str) script: The callback to run, split line-by-line.
+        """
         index = self._current_menu_index.next()
         script_path = os.path.join(self.custom_scripts_dir_path, "{:04d}.py".format(index))
         with open(script_path, "w") as menu_file:
@@ -99,14 +121,25 @@ class MenuGenerator(object):
             menu_file.write("# 3DE4.script.gui:	{}\n".format(parent_menu))
             menu_file.write("\n".join(script))
 
-    def _add_command_to_menu(self, cmd, parent_menu):
+    def _add_command_to_menu(self, cmd, parent_menu, favourite=False):
+        """
+        Take a command and add it to the specified menu.
+
+        :param AppCommand cmd: The command to add.
+        :param str parent_menu: The name of the parent menu item.
+        :param bool favourite: Is the command a favourite command.
+        """
         script = [
             "import sgtk",
             "if __name__ == '__main__':",
             "   engine = sgtk.platform.current_engine()",
             "   engine.commands[{!r}]['callback']()".format(cmd.name),
         ]
-        self._add_script_to_menu(cmd.name, parent_menu, script)
+        name = cmd.name
+        if favourite:
+            # Dashes come after spaces but before letters in ordering
+            name = "- {}".format(cmd.name)
+        self._add_script_to_menu(name, parent_menu, script)
 
 
 class AppCommand(object):
@@ -115,12 +148,23 @@ class AppCommand(object):
     """
 
     def __init__(self, name, command_dict):
+        """
+        Initialise the class.
+
+        :param str name: The name fo the command.
+        :param dict command_dict: The dictionary defining this command.
+        """
         self.name = name
         self.properties = command_dict["properties"]
         self.callback = command_dict["callback"]
         self.favourite = self._is_app_favourite()
 
     def _is_app_favourite(self):
+        """
+        Figure out if this command is specified as a favourite.
+
+        :rtype: bool
+        """
         if "app" not in self.properties:
             return False
         app_instance = self.properties["app"]
@@ -135,7 +179,9 @@ class AppCommand(object):
 
     def get_app_name(self):
         """
-        Returns the name of the app that this command belongs to
+        Returns the name of the app that this command belongs to.
+
+        :rtype: str
         """
         if "app" in self.properties:
             return self.properties["app"].display_name
@@ -145,6 +191,8 @@ class AppCommand(object):
         """
         Returns the name of the app instance, as defined in the environment.
         Returns None if not found.
+
+        :rtype: str or Nonetype
         """
         if "app" not in self.properties:
             return None
@@ -161,6 +209,8 @@ class AppCommand(object):
 
     def get_type(self):
         """
-        returns the command type. Returns node, custom_pane or default
+        Returns the command type. Returns node, custom_pane or default.
+
+        :rtype: str or Nonetype
         """
         return self.properties.get("type", "default")

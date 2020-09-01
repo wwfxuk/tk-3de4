@@ -12,6 +12,10 @@ import sgtk
 
 
 def _timer():
+    """
+    Poller to listen to the change of the scene file to determine the new
+    context.
+    """
     QtCore.QCoreApplication.processEvents()
     # check for open file change
     global g_current_file

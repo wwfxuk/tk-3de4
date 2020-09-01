@@ -17,10 +17,25 @@ class TDE4Engine(Engine):
 
     @property
     def context_change_allowed(self):
+        """
+        Whether a context change is allowed without the need for a restart.
+        If a bundle supports on-the-fly context changing, this property should
+        be overridden in the deriving class and forced to return True.
+        :returns: bool
+        """
         return True
 
     @property
     def host_info(self):
+        """
+        Returns information about the application hosting this engine.
+        This should be re-implemented in deriving classes to handle the logic
+        specific to the application the engine is designed for.
+        A dictionary with at least a "name" and a "version" key should be returned
+        by derived implementations, with respectively the host application name
+        and its release string as values, e.g. ``{ "name": "Maya", "version": "2017.3"}``.
+        :returns: A ``{"name": "unknown", "version" : "unknown"}`` dictionary.
+        """
         host_info = {"name": "3DEqualizer4", "version": "unknown"}
         try:
             import tde4
@@ -46,9 +61,13 @@ class TDE4Engine(Engine):
         return False
 
     def post_app_init(self):
+        """
+        Executed by the system and typically implemented by deriving classes.
+        This method called after all apps have been loaded.
+        """
         self.register_command(
             "Jump to Shotgun",
-            self._jump_to_sg,
+            self._jump_to_shotgun,
             {
                 "short_name": "jump_to_sg",
                 "description": "Jump to Entity page in Shotgun.",
@@ -57,7 +76,7 @@ class TDE4Engine(Engine):
         )
         self.register_command(
             "Jump to File System",
-            self._jump_to_fs,
+            self._jump_to_filesystem,
             {
                 "short_name": "jump_to_fs",
                 "description": "Open relevant folders in the file system.",
@@ -67,23 +86,71 @@ class TDE4Engine(Engine):
         self.create_shotgun_menu()
 
     def post_qt_init(self):
+        """
+        Called after the initialization of qt within startup.py.
+        """
         self._initialize_dark_look_and_feel()
 
     def post_context_change(self, old_context, new_context):
+        """
+        Called after a context change.
+        Implemented by deriving classes.
+        :param old_context:     The context being changed away from.
+        :type old_context: :class:`~sgtk.Context`
+        :param new_context:     The context being changed to.
+        :type new_context: :class:`~sgtk.Context`
+        """
         self.create_shotgun_menu()
 
     def destroy_engine(self):
+        """
+        Called when the engine should tear down itself and all its apps.
+        Implemented by deriving classes.
+        """
         self.logger.debug("%s: Destroying...", self)
         self._cleanup_folders()
 
     @property
     def has_ui(self):
+        """
+        Indicates that the host application that the engine is connected to has a UI enabled.
+        This always returns False for some engines (such as the shell engine) and may vary
+        for some engines, depending if the host application for example is in batch mode or
+        UI mode.
+        :returns: boolean value indicating if a UI currently exists
+        """
         return True
 
     ##########################################################################################
     # logging
 
     def _emit_log_message(self, handler, record):
+        """
+        Called by the engine whenever a new log message is available.
+        All log messages from the toolkit logging namespace will be passed to this method.
+        .. note:: To implement logging in your engine implementation, subclass
+                  this method and display the record in a suitable way - typically
+                  this means sending it to a built-in DCC console. In addition to this,
+                  ensure that your engine implementation *does not* subclass
+                  the (old) :meth:`Engine.log_debug`, :meth:`Engine.log_info` family
+                  of logging methods.
+                  For a consistent output, use the formatter that is associated with
+                  the log handler that is passed in. A basic implementation of
+                  this method could look like this::
+                      # call out to handler to format message in a standard way
+                      msg_str = handler.format(record)
+                      # display message
+                      print msg_str
+        .. warning:: This method may be executing called from worker threads. In DCC
+                     environments, where it is important that the console/logging output
+                     always happens in the main thread, it is recommended that you
+                     use the :meth:`async_execute_in_main_thread` to ensure that your
+                     logging code is writing to the DCC console in the main thread.
+        :param handler: Log handler that this message was dispatched from
+        :type handler: :class:`~python.logging.LogHandler`
+        :param record: Std python logging record
+        :type record: :class:`~python.logging.LogRecord`
+        """
         log_debug = record.levelno < logging.INFO and sgtk.LogManager().global_debug
         log_info_above = record.levelno >= logging.INFO
         if log_debug or log_info_above:
@@ -93,6 +160,15 @@ class TDE4Engine(Engine):
             print msg
 
     def _create_dialog(self, title, bundle, widget, parent):
+        """
+        Create a TankQDialog with the specified widget embedded. This also connects to the
+        dialogs dialog_closed event so that it can clean up when the dialog is closed.
+        .. note:: For more information, see the documentation for :meth:`show_dialog()`.
+        :param title: The title of the window
+        :param bundle: The app, engine or framework object that is associated with this window
+        :param widget: A QWidget instance to be embedded in the newly created dialog.
+        :type widget: :class:`PySide.QtGui.QWidget`
+        """
         from sgtk.platform.qt import QtCore
         dialog = super(TDE4Engine, self)._create_dialog(title, bundle, widget, parent)
         dialog.setWindowFlags(dialog.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
@@ -105,7 +181,7 @@ class TDE4Engine(Engine):
     #########################################################################################
     # callbacks
 
-    def _jump_to_sg(self):
+    def _jump_to_shotgun(self):
         """
         Jump to shotgun, launch web browser
         """
@@ -113,9 +189,9 @@ class TDE4Engine(Engine):
         url = self.context.shotgun_url
         QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
 
-    def _jump_to_fs(self):
+    def _jump_to_filesystem(self):
         """
-        Jump from context to FS
+        Jump from context to the filesystem
         """
         # launch one window for each location on disk
         paths = self.context.filesystem_locations
@@ -139,6 +215,9 @@ class TDE4Engine(Engine):
                 self.logger.error("Failed to launch '%s'!", cmd)
 
     def _cleanup_folders(self):
+        """
+        Clean up the menu folders for the engine.
+        """
         custom_scripts_dir_path = os.environ["TK_3DE4_MENU_DIR"]
         if os.path.isdir(custom_scripts_dir_path):
             shutil.rmtree(custom_scripts_dir_path)
