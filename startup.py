@@ -1,10 +1,11 @@
 import os
-import sys
 import subprocess
+import sys
 import tempfile
 
 import sgtk
 from sgtk.platform import SoftwareLauncher, SoftwareVersion, LaunchInformation
+
 
 class TDE4Launcher(SoftwareLauncher):
     """
@@ -56,4 +57,3 @@ class TDE4Launcher(SoftwareLauncher):
         # the engine icon
         engine_icon = os.path.join(self.disk_location, "icon_256.png")
         return engine_icon
-
