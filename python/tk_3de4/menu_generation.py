@@ -74,9 +74,9 @@ class MenuGenerator(object):
         ]
 
         ctx = self._engine.context
-        ctx_name = str(ctx)
         # Adding a space to name will put it at the top of the menu as it's alphabetical
-        ctx_menu_name = "{}{} {}".format(MenuGenerator.ROOT_UI_ITEM, self.MENU_SEP, ctx_name)
+        ctx_name = " %s" % ctx
+        ctx_menu_name = self.MENU_SEP.join([MenuGenerator.ROOT_UI_ITEM, ctx_name])
 
         other_menu_items = defaultdict(list)
         favourites = []
