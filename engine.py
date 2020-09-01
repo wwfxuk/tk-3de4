@@ -215,7 +215,7 @@ class TDE4Engine(Engine):
                 subprocess.check_call(args)
             except Exception as error:
                 cmdline = subprocess.list2cmdline(args)
-                self.logger.error("Failed to launch '%s'!", cmdline)
+                self.logger.exception("Failed to launch '%s'!", cmdline)
 
     def _cleanup_folders(self):
         """
